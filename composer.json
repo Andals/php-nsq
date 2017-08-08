@@ -1,0 +1,19 @@
+{
+    "name": "andals/php-nsq",
+    "autoload": {
+        "psr-4": {
+            "PhpNsq\\": "src/"
+        }
+    },
+    "repositories": [
+        {
+            "packagist": false
+        },
+        {
+            "type": "composer",
+            "url": "https://packagist.phpcomposer.com"
+        }
+    ],
+    "require": {
+    }
+}

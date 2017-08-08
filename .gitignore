@@ -1,0 +1,11 @@
+vendor
+
+*.sw*
+tags
+
+tmp
+
+composer.lock
+
+*.iml
+.idea
