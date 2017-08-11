@@ -13,7 +13,7 @@ class TcpClient
 {
     private $socket = null;
 
-    public function __construct($address, $port, $domain = AF_INET)
+    public function __construct($host, $port, $domain = AF_INET)
     {
         $socket = socket_create($domain, SOCK_STREAM, SOL_TCP);
         if ($socket === false) {
@@ -22,7 +22,7 @@ class TcpClient
         }
         $this->socket = $socket;
 
-        if (socket_connect($this->socket, $address, $port) === false) {
+        if (socket_connect($this->socket, $host, $port) === false) {
             $error = $this->getLastError();
             throw new \Exception("socket_connect error: " . $error['msg']);
         }

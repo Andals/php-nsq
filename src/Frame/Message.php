@@ -21,11 +21,11 @@ class Message extends Base
     private $messageId   = '';
     private $messageBody = '';
 
-    public function __construct($payloadSize, $data, $enableGzip = true)
+    public function __construct($payloadSize, $payload, $enableGzip = true)
     {
         $this->enableGzip = $enableGzip;
 
-        parent::__construct($payloadSize, $data);
+        parent::__construct($payloadSize, $payload);
     }
 
     public function getFrameType()
@@ -54,19 +54,19 @@ class Message extends Base
         return $this->messageBody;
     }
 
-    protected function parsePayload(&$data)
+    protected function parsePayload(&$payload)
     {
         // TODO: Implement parsePayload() method.
-        $this->parseTimestamp($data);
-        $this->parseAttempts($data);
-        $this->parseMessageId($data);
-        $this->parseMessageBody($data);
+        $this->parseTimestamp($payload);
+        $this->parseAttempts($payload);
+        $this->parseMessageId($payload);
+        $this->parseMessageBody($payload);
     }
 
 
-    private function parseTimestamp(&$data)
+    private function parseTimestamp(&$payload)
     {
-        $t = unpack('J', substr($data, self::FRAME_SIZE_FRAME_TYPE, self::FRAME_SIZE_TIMESTAMP));
+        $t = unpack('J', substr($payload, self::FRAME_SIZE_FRAME_TYPE, self::FRAME_SIZE_TIMESTAMP));
         $t = current($t);
 
         //convert nanoseconds to seconds
@@ -74,26 +74,26 @@ class Message extends Base
         $this->t = (int)$t;
     }
 
-    private function parseAttempts(&$data)
+    private function parseAttempts(&$payload)
     {
         $start    = self::FRAME_SIZE_FRAME_TYPE + self::FRAME_SIZE_TIMESTAMP;
-        $attempts = unpack('n', substr($data, $start, self::FRAME_SIZE_ATTEMPTS));
+        $attempts = unpack('n', substr($payload, $start, self::FRAME_SIZE_ATTEMPTS));
 
         $this->attempts = current($attempts);
     }
 
-    private function parseMessageId(&$data)
+    private function parseMessageId(&$payload)
     {
         $start = self::FRAME_SIZE_FRAME_TYPE + self::FRAME_SIZE_TIMESTAMP + self::FRAME_SIZE_ATTEMPTS;
-        $bdata = substr($data, $start, self::FRAME_SIZE_MESSAGE_ID);
+        $bdata = substr($payload, $start, self::FRAME_SIZE_MESSAGE_ID);
 
         $this->messageId = $this->parseString(self::FRAME_SIZE_MESSAGE_ID, $bdata);
     }
 
-    private function parseMessageBody(&$data)
+    private function parseMessageBody(&$payload)
     {
         $start = self::FRAME_SIZE_FRAME_TYPE + self::FRAME_SIZE_TIMESTAMP + self::FRAME_SIZE_ATTEMPTS + self::FRAME_SIZE_MESSAGE_ID;
-        $bdata = substr($data, $start);
+        $bdata = substr($payload, $start);
 
         $this->messageBody = $this->parseString($this->payloadSize - $start, $bdata);
         if ($this->enableGzip) {

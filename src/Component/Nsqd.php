@@ -19,9 +19,9 @@ class Nsqd
      */
     private $client = null;
 
-    public function __construct($address, $port)
+    public function __construct(TcpClient $client)
     {
-        $this->client = new TcpClient($address, $port);
+        $this->client = $client;
     }
 
     public function getTcpClientSocket()

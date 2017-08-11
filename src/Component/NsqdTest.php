@@ -8,6 +8,7 @@
 
 namespace PhpNsq\Component;
 
+use PhpNsq\Socket\TcpClient;
 use PHPUnit\Framework\TestCase;
 
 use PhpNsq\Frame\Message;
@@ -16,7 +17,7 @@ class NsqdTest extends TestCase
 {
     public function nsqdProvider()
     {
-        $nsqd = new Nsqd("127.0.0.1", 4150);
+        $nsqd = new Nsqd(new TcpClient('127.0.0.1', 4150));
         $nsqd->sendMagic();
 
         return array(

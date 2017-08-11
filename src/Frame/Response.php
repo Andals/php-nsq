@@ -25,10 +25,10 @@ class Response extends Base
         return $this->contents;
     }
 
-    protected function parsePayload(&$data)
+    protected function parsePayload(&$payload)
     {
         // TODO: Implement parsePayload() method.
-        $bstr = substr($data, self::FRAME_SIZE_PAYLOAD);
+        $bstr = substr($payload, self::FRAME_SIZE_PAYLOAD);
         $this->contents = $this->parseString($this->payloadSize - self::FRAME_SIZE_FRAME_TYPE, $bstr);
     }
 }

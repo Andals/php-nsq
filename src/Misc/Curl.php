@@ -30,7 +30,7 @@ class Curl
     }/*}}}*/
 
     //timeout若设置级别为毫秒请用array($time,'ms')
-    public function get($url, $timeout=self::DEF_TIMEOUT, $ips=array(), $retry=0, $opts=array())
+    public function get($url, $timeout=self::DEF_TIMEOUT, $ips=array(), $retry=1, $opts=array())
     {/*{{{*/
         $r = $this->prepareRequest($url, $timeout, $ips, $opts);
         if(false === $r)

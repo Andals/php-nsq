@@ -15,19 +15,19 @@ abstract class Base
     const FRAME_TYPE_ERROR    = 1;
     const FRAME_TYPE_MESSAGE  = 2;
 
-    const FRAME_SIZE_PAYLOAD = 4;
+    const FRAME_SIZE_PAYLOAD    = 4;
     const FRAME_SIZE_FRAME_TYPE = 4;
 
     protected $payloadSize = 0;
 
     abstract public function getFrameType();
 
-    abstract protected function parsePayload(&$data);
+    abstract protected function parsePayload(&$payload);
 
-    public function __construct($payloadSize, &$data)
+    public function __construct($payloadSize, &$payload)
     {
         $this->payloadSize = $payloadSize;
-        $this->parsePayload($data);
+        $this->parsePayload($payload);
     }
 
     public function getPayloadSize()
