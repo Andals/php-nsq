@@ -17,7 +17,7 @@ class Nsqlookupd
 
     /**
      * Nsqlookupd constructor.
-     * @param string $address: http://127.0.0.1:4151
+     * @param string $address : http://127.0.0.1:4151
      */
     public function __construct($address)
     {
@@ -28,7 +28,7 @@ class Nsqlookupd
     public function lookup($topic)
     {
         $response = $this->curl->get("$this->address/lookup?topic=$topic");
-        $data = json_decode($response, true);
+        $data     = json_decode($response, true);
         if (!isset($data['producers'])) {
             return array();
         }
@@ -36,7 +36,7 @@ class Nsqlookupd
         $result = array();
         foreach ($data['producers'] as $item) {
             $result[] = array(
-                'host' => $item['broadcast_address'],
+                'host'     => $item['broadcast_address'],
                 'tcp_port' => $item['tcp_port'],
             );
         }

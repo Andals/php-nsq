@@ -38,6 +38,11 @@ class TcpClient
         );
     }
 
+    public function getSocket()
+    {
+        return $this->socket;
+    }
+
     /**
      * @param $buf string
      * @return int
