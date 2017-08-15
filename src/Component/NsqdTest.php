@@ -8,6 +8,8 @@
 
 namespace PhpNsq\Component;
 
+use PhpNsq\Frame\Response;
+use PhpNsq\Frame\Tool;
 use PhpNsq\Socket\TcpClient;
 use PHPUnit\Framework\TestCase;
 
@@ -40,5 +42,26 @@ class NsqdTest extends TestCase
 
         $message = new Message($size, $payload);
         var_dump($message->getMessageBody());
+    }
+
+    /**
+     * @dataProvider nsqdProvider
+     * @param $nsqd Nsqd
+     */
+    public function testIdentify($nsqd)
+    {
+        $data = array(
+            'hostname'           => $_SERVER['HOSTNAME'],
+            'heartbeat_interval' => 3000,
+        );
+        $nsqd->identify($data);
+
+        $payloadSize = $nsqd->readPayloadSize();
+        $payload = $nsqd->readPayload($payloadSize);
+
+        $frameType = Tool::parseFrameType($payload);
+        echo "$frameType\n";
+        $response = new Response($payloadSize, $payload);
+        var_dump($response->getContents());
     }
 }

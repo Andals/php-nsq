@@ -10,7 +10,8 @@ namespace PhpNsq\Frame;
 
 class Response extends Base
 {
-    const RESPONSE_OK = 'OK';
+    const RESPONSE_OK        = 'OK';
+    const RESPONSE_HEARTBEAT = '_heartbeat_';
 
     private $contents = '';
 
@@ -28,7 +29,7 @@ class Response extends Base
     protected function parsePayload(&$payload)
     {
         // TODO: Implement parsePayload() method.
-        $bstr = substr($payload, self::FRAME_SIZE_PAYLOAD);
+        $bstr           = substr($payload, self::FRAME_SIZE_PAYLOAD);
         $this->contents = $this->parseString($this->payloadSize - self::FRAME_SIZE_FRAME_TYPE, $bstr);
     }
 }

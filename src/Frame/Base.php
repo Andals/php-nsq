@@ -35,15 +35,10 @@ abstract class Base
         return $this->payloadSize;
     }
 
-
     protected function parseString($len, &$bstr)
     {
-        $chars  = unpack('c' . $len, $bstr);
-        $result = '';
-        foreach ($chars as $char) {
-            $result .= chr($char);
-        }
+        $chars = unpack('a' . $len, $bstr);
 
-        return $result;
+        return current($chars);
     }
 }

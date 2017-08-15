@@ -12,5 +12,10 @@ use PhpNsq\Frame\Message;
 
 interface MessageHandler
 {
+
+    /**
+     * @param Message $message
+     * @return bool
+     */
     public function handleMessage(Message $message);
 }

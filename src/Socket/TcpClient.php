@@ -43,6 +43,16 @@ class TcpClient
         return $this->socket;
     }
 
+    public function getSocketId()
+    {
+        return intval($this->socket);
+    }
+
+    public function close()
+    {
+        socket_close($this->socket);
+    }
+
     /**
      * @param $buf string
      * @return int

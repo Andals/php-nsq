@@ -9,6 +9,7 @@
 namespace PhpNsq\Component;
 
 use PhpNsq\Frame\Base;
+use PhpNsq\Frame\Message;
 use PhpNsq\Socket\TcpClient;
 use PhpNsq\Frame\Response;
 
@@ -24,9 +25,9 @@ class Nsqd
         $this->client = $client;
     }
 
-    public function getTcpClientSocket()
+    public function getTcpClient()
     {
-        return $this->client->getSocket();
+        return $this->client;
     }
 
     public function sendMagic()
@@ -57,6 +58,47 @@ class Nsqd
         }
     }
 
+    public function identify(array $data)
+    {
+        $data = json_encode($data);
+        $data = pack('a' . strlen($data), $data);
+        $size = pack('N', strlen($data));
+
+        if ($this->client->write("IDENTIFY\n$size$data") === false) {
+            $this->throwClientError('identify');
+        }
+
+        $payloadSize = $this->readPayloadSize();
+        $payload     = $this->readPayload($payloadSize);
+        $response    = new Response($payloadSize, $payload);
+        if ($response->getContents() !== Response::RESPONSE_OK) {
+            $this->throwClientError('identify');
+        }
+    }
+
+    public function sendNop()
+    {
+        if ($this->client->write("NOP\n") === false) {
+            $this->throwClientError('nop');
+        }
+    }
+
+    public function finMessage(Message $message)
+    {
+        $messageId = $message->getMessageId();
+        if ($this->client->write("FIN $messageId\n") === false) {
+            $this->throwClientError('fin');
+        }
+    }
+
+    public function reqMessage(Message $message, $timeout = 0)
+    {
+        $messageId = $message->getMessageId();
+        if ($this->client->write("REQ $messageId $timeout\n") === false) {
+            $this->throwClientError('fin');
+        }
+    }
+
     public function readPayloadSize()
     {
         if (($size = $this->client->read(Base::FRAME_SIZE_PAYLOAD)) === false) {
@@ -72,8 +114,11 @@ class Nsqd
         return $size;
     }
 
-    public function readPayload($payloadSize)
+    public function readPayload($payloadSize = 0)
     {
+        if ($payloadSize === 0) {
+            $payloadSize = $this->readPayloadSize();
+        }
         if (($payload = $this->client->read($payloadSize)) === false) {
             $this->throwClientError('read payload');
         }
