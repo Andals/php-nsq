@@ -11,7 +11,9 @@ namespace PhpNsq\Socket;
 
 class TcpClient
 {
-    private $socket = null;
+    private $socket    = null;
+    private $peerInfo  = array();
+    private $connected = false;
 
     public function __construct($host, $port, $domain = AF_INET)
     {
@@ -20,12 +22,49 @@ class TcpClient
             $error = $this->getLastError();
             throw new \Exception("socket_create error: " . $error['msg']);
         }
-        $this->socket = $socket;
 
-        if (socket_connect($this->socket, $host, $port) === false) {
-            $error = $this->getLastError();
-            throw new \Exception("socket_connect error: " . $error['msg']);
+        $this->socket   = $socket;
+        $this->peerInfo = array(
+            'host'   => $host,
+            'port'   => $port,
+            'domain' => $domain,
+        );
+    }
+
+    public function connect($retry = 0)
+    {
+        if ($this->connected) {
+            return true;
         }
+
+        if (@socket_connect($this->socket, $this->peerInfo['host'], $this->peerInfo['port']) === true) {
+            $this->connected = true;
+            return true;
+        }
+
+        for ($i = 0; $i < $retry; $i++) {
+            if (@socket_connect($this->socket, $this->peerInfo['host'], $this->peerInfo['port']) === true) {
+                $this->connected = true;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function reconnect($retry = 0)
+    {
+        $this->close();
+        $this->connected = false;
+        $this->socket    = null;
+
+        $socket = socket_create($this->peerInfo['domain'], SOCK_STREAM, SOL_TCP);
+        if ($socket === false) {
+            return false;
+        }
+
+        $this->socket = $socket;
+        return $this->connect($retry);
     }
 
     public function getLastError()
@@ -36,6 +75,11 @@ class TcpClient
             'errno' => $errno,
             'msg'   => socket_strerror($errno),
         );
+    }
+
+    public function getPeerInfo()
+    {
+        return $this->peerInfo;
     }
 
     public function getSocket()
@@ -50,7 +94,10 @@ class TcpClient
 
     public function close()
     {
-        socket_close($this->socket);
+        if (!is_null($this->socket)) {
+            socket_close($this->socket);
+            $this->socket = null;
+        }
     }
 
     /**
@@ -60,23 +107,25 @@ class TcpClient
     public function write($buf)
     {
         $len   = strlen($buf);
-        $total = socket_write($this->socket, $buf, $len);
+        $total = @socket_write($this->socket, $buf, $len);
         if ($total === false) {
             return false;
         }
 
         while ($total < $len) {
-            $n = socket_write($this->socket, substr($buf, $total));
+            $n = @socket_write($this->socket, substr($buf, $total));
             if ($n === false) {
                 return false;
             }
             $total += $n;
         }
+
+        return $len;
     }
 
     public function read($len, $waitAll = true)
     {
-        $buf = socket_read($this->socket, $len);
+        $buf = @socket_read($this->socket, $len);
         if ($buf === false) {
             return false;
         }
@@ -87,7 +136,7 @@ class TcpClient
 
         $total = strlen($buf);
         while ($total < $len) {
-            $str = socket_read($this->socket, $len - $total);
+            $str = @socket_read($this->socket, $len - $total);
             if ($str === false) {
                 return false;
             }

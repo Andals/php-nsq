@@ -116,7 +116,7 @@ class Consumer
 
         $addresses = array();
         foreach ($data as $item) {
-            $address             = $item['host'] . ':' . $item['tcp_port'];
+            $address             = $this->makeNsqdAddress($item['host'], $item['tcp_port']);
             $addresses[$address] = 1;
             if (!isset($this->nsqdAddresses[$address])) {
                 $this->initNsqd($item);
@@ -125,10 +125,7 @@ class Consumer
 
         foreach ($this->nsqdAddresses as $address => $sid) {
             if (!isset($addresses[$address])) {
-                $nsqd = $this->nsqds[$sid];
-                $nsqd->getTcpClient()->close();
-                unset($this->nsqds[$sid]);
-                unset($this->nsqdAddresses[$address]);
+                $this->removeNsqd($this->nsqds[$sid]);
             }
         }
 
@@ -143,26 +140,57 @@ class Consumer
         }
 
         foreach ($data as $item) {
-            $this->initNsqd($item);
+            $client = new TcpClient($item['host'], $item['tcp_port']);
+            if ($this->initNsqd($client) === false) {
+                $client->close();
+            }
         }
 
         $this->heartbeatCntToRelookup = self::HEARTBEAT_CNT_TO_RELOOKUP_PER_NSQD * count($this->nsqds);
     }
 
-    private function initNsqd(array $item)
+    private function initNsqd(TcpClient $client)
     {
-        $client = new TcpClient($item['host'], $item['tcp_port']);
-        $nsqd   = new Nsqd($client);
+        $nsqd = new Nsqd($client);
+        if ($nsqd->connect(1) === false) {
+            $this->logger->error('nsqd connect error: ' . $nsqd->getTcpClient()->getLastError());
+            return false;
+        }
 
-        $nsqd->sendMagic();
-        $nsqd->subscribe($this->topic, $this->channel);
-        $nsqd->updateRdy(1);
+        try {
+            $nsqd->sendMagic();
+            $nsqd->subscribe($this->topic, $this->channel);
+            $nsqd->updateRdy(1);
+        } catch (\Exception $e) {
+            $this->logger->error('nsqd init error: ' . $client->getLastError());
+            return false;
+        }
 
-        $sid     = $nsqd->getTcpClient()->getSocketId();
-        $address = $item['host'] . ':' . $item['tcp_port'];
+        $sid      = $nsqd->getTcpClient()->getSocketId();
+        $peerInfo = $client->getPeerInfo();
+        $address  = $this->makeNsqdAddress($peerInfo['host'], $peerInfo['port']);
 
         $this->nsqds[$sid]             = $nsqd;
         $this->nsqdAddresses[$address] = $sid;
+
+        return true;
+    }
+
+    private function makeNsqdAddress($host, $port)
+    {
+        return $host . ':' . $port;
+    }
+
+    private function removeNsqd(Nsqd $nsqd)
+    {
+        $client   = $nsqd->getTcpClient();
+        $sid      = $client->getSocketId();
+        $peerInfo = $client->getPeerInfo();
+        $address  = $this->makeNsqdAddress($peerInfo['host'], $peerInfo['port']);
+
+        $client->close();
+        unset($this->nsqds[$sid]);
+        unset($this->nsqdAddresses[$address]);
     }
 
     /**
@@ -177,17 +205,19 @@ class Consumer
             $read[] = $nsqd->getTcpClient()->getSocket();
         }
 
-        if (($r = socket_select($read, $write, $except, null)) === false) {
-            throw new \Exception("socket select error: " . socket_strerror(socket_last_error()));
+        if (($r = @socket_select($read, $write, $except, null)) === false) {
+            $this->logger->error('socket select error: ' . socket_strerror(socket_last_error()));
+            return array();
         }
 
         $nsqds = array();
         foreach ($read as $socket) {
             $sid = intval($socket);
             if (!isset($this->nsqds[$sid])) {
-                throw new \Exception("socket select error: invalid socket id");
+                $this->logger->error("socket select error: invalid socket id");
+            } else {
+                $nsqds[] = $this->nsqds[$sid];
             }
-            $nsqds[] = $this->nsqds[$sid];
         }
 
         return $nsqds;
@@ -199,8 +229,37 @@ class Consumer
      */
     private function readFrame(Nsqd $nsqd)
     {
-        $payloadSize = $nsqd->readPayloadSize();
-        $payload     = $nsqd->readPayload($payloadSize);
+        $payloadSize = 0;
+        $payload     = '';
+        try {
+            $payloadSize = $nsqd->readPayloadSize();
+            $payload     = $nsqd->readPayload($payloadSize);
+        } catch (\Exception $e) {
+            $this->logger->error("read payloadSize or payload error: " . $e->getMessage());
+
+            $client = $nsqd->getTcpClient();
+            $this->removeNsqd($nsqd);
+            if ($client->reconnect(1) === false) {
+                $this->logger->error('nsqd reconnect error: ' . $nsqd->getTcpClient()->getLastError());
+                $client->close();
+                return false;
+            }
+
+            if ($this->initNsqd($client) === false) {
+                $this->logger->error('init nsqd after reconnect error');
+                $client->close();
+                return false;
+            }
+
+            try {
+                $payloadSize = $nsqd->readPayloadSize();
+                $payload     = $nsqd->readPayload($payloadSize);
+            } catch (\Exception $e) {
+                $this->logger->error('after retry read payloadSize or payload error: ' . $e->getMessage());
+                $this->removeNsqd($this->nsqds[$client->getSocketId()]);
+                return false;
+            }
+        }
 
         switch (Tool::parseFrameType($payload)) {
             case Base::FRAME_TYPE_MESSAGE:
@@ -267,7 +326,7 @@ class Consumer
                 }
             }
         } else {
-            $this->logger->info("recv response $contents");
+            $this->logger->info("recv response frame: $contents");
         }
     }
 
@@ -276,6 +335,6 @@ class Consumer
      */
     private function processErrorFrame($error)
     {
-        $this->logger->error("recv error " . $error->getMsg());
+        $this->logger->error("recv error frame: " . $error->getMsg());
     }
 }

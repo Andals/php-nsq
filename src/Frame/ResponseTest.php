@@ -17,6 +17,7 @@ class ResponseTest extends TestCase
     public function clientProvider()
     {
         $client = new TcpClient("127.0.0.1", 4150);
+        $client->connect();
         $client->write('  V2');
         $client->write("SUB app2_t2 c1\n");
 

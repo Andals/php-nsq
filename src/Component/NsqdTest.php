@@ -20,6 +20,7 @@ class NsqdTest extends TestCase
     public function nsqdProvider()
     {
         $nsqd = new Nsqd(new TcpClient('127.0.0.1', 4150));
+        $nsqd->connect();
         $nsqd->sendMagic();
 
         return array(

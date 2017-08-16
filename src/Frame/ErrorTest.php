@@ -17,6 +17,7 @@ class ErrorTest extends TestCase
     public function clientProvider()
     {
         $client = new TcpClient("127.0.0.1", 4150);
+        $client->connect();
         $client->write('  V2');
         $client->write("FIN xxxyyy\n");
 

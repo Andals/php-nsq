@@ -25,6 +25,16 @@ class Nsqd
         $this->client = $client;
     }
 
+    public function connect($retry = 0)
+    {
+        return $this->client->connect();
+    }
+
+    public function reconnect($retry = 0)
+    {
+        return $this->client->reconnect();
+    }
+
     public function getTcpClient()
     {
         return $this->client;
