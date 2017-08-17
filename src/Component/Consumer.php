@@ -129,6 +129,7 @@ class Consumer
             }
         }
 
+        $this->updateHeartbeatCntToRelookup();
         return true;
     }
 
@@ -146,6 +147,11 @@ class Consumer
             }
         }
 
+        $this->updateHeartbeatCntToRelookup();
+    }
+
+    private function updateHeartbeatCntToRelookup()
+    {
         $this->heartbeatCntToRelookup = self::HEARTBEAT_CNT_TO_RELOOKUP_PER_NSQD * count($this->nsqds);
     }
 
@@ -191,6 +197,8 @@ class Consumer
         $client->close();
         unset($this->nsqds[$sid]);
         unset($this->nsqdAddresses[$address]);
+
+        $this->updateHeartbeatCntToRelookup();
     }
 
     /**
