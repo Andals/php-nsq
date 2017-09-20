@@ -1,4 +1,4 @@
-It is a php client library for nsq.
+This is a php client library for nsq.
 
 # Requirement
 
@@ -9,6 +9,10 @@ sockets
 
 Sockets Support => enabled
 ```
+
+# Usage
+
+composer require andals/php-nsq
 
 # Demo
 
