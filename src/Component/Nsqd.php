@@ -53,9 +53,8 @@ class Nsqd
             $this->throwClientError('subscribe');
         }
 
-        $payloadSize = $this->readPayloadSize();
-        $payload     = $this->readPayload($payloadSize);
-        $response    = new Response($payloadSize, $payload);
+        $response = $this->readResponse();
+
         if ($response->getContents() !== Response::RESPONSE_OK) {
             $this->throwClientError('subscribe');
         }
@@ -78,9 +77,7 @@ class Nsqd
             $this->throwClientError('identify');
         }
 
-        $payloadSize = $this->readPayloadSize();
-        $payload     = $this->readPayload($payloadSize);
-        $response    = new Response($payloadSize, $payload);
+        $response = $this->readResponse();
         if ($response->getContents() !== Response::RESPONSE_OK) {
             $this->throwClientError('identify');
         }
@@ -134,6 +131,64 @@ class Nsqd
         }
 
         return $payload;
+    }
+
+    public function publish($topic, $message)
+    {
+        $size = pack('N', strlen($message));
+        $cmd = "PUB $topic\n" . $size . $message;
+        if ($this->client->write($cmd) === false) {
+            $this->throwClientError('publish');
+        }
+
+        $this->checkResponseOK('publish response');
+    }
+
+    public function multiPublish($topic, array $messages)
+    {
+        $bodySize = 4;
+        $num = pack('N', count($messages));
+
+        $messageBody = "";
+        foreach ($messages as $message) {
+            $size = strlen($message);
+            $messageBody .= pack('N', $size) . $message;
+            $bodySize += $size + 4;
+        }
+
+        $cmd = "MPUB $topic\n" . pack('N', $bodySize) . $num . $messageBody;
+        if ($this->client->write($cmd) === false) {
+            $this->throwClientError('multi publish');
+        }
+
+        $this->checkResponseOK('multi publish response');
+    }
+
+    private function checkResponseOK($msg)
+    {
+        $response = $this->readResponse();
+        $responseOk = false;
+        if ($response->getContents() == Response::RESPONSE_HEARTBEAT) {
+            $this->sendNop();
+
+            $response = $this->readResponse();
+            if ($response->getContents() == Response::RESPONSE_OK) {
+                $responseOk = true;
+            }
+        } else if ($response->getContents() == Response::RESPONSE_OK) {
+            $responseOk = true;
+        }
+
+        if (!$responseOk) {
+            $this->throwClientError($msg);
+        }
+    }
+
+    private function readResponse()
+    {
+        $payloadSize = $this->readPayloadSize();
+        $payload     = $this->readPayload($payloadSize);
+        return new Response($payloadSize, $payload);
     }
 
     private function throwClientError($prefix)

@@ -17,60 +17,17 @@ use PhpNsq\Socket\TcpClient;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
-class Consumer
+class Consumer extends ClientBase
 {
-    const HEARTBEAT_CNT_TO_RELOOKUP_PER_NSQD = 10;
-
     /**
      * @var MessageHandler
      */
     private $handler = null;
     private $gunzip  = false;
 
-    /**
-     * @var Nsqlookupd[]
-     */
-    private $nsqlookupds = array();
-
-    /**
-     * @var Nsqd[]
-     */
-    private $nsqds         = array();
-    private $nsqdAddresses = array();
-
-    private $topic   = '';
-    private $channel = '';
-
-    private $heartbeatCnt           = 0;
-    private $heartbeatCntToRelookup = 0;
-
-    /**
-     * @var LoggerInterface
-     */
-    private $logger = null;
-
-    public function __construct()
-    {
-        $this->logger = new NullLogger();
-    }
-
-    public function setLogger(LoggerInterface $logger)
-    {
-        $this->logger = $logger;
-
-        return $this;
-    }
-
     public function setHandler(MessageHandler $handler)
     {
         $this->handler = $handler;
-
-        return $this;
-    }
-
-    public function addNsqlookupd($address)
-    {
-        $this->nsqlookupds[] = new Nsqlookupd($address);
 
         return $this;
     }
@@ -88,6 +45,7 @@ class Consumer
         $this->channel = $channel;
 
         $this->initNsqds();
+        $this->subscribeNsqds();
 
         while (true) {
             foreach ($this->getReadableNsqds() as $nsqd) {
@@ -98,107 +56,12 @@ class Consumer
         }
     }
 
-
-    private function lookup()
+    private function subscribeNsqds()
     {
-        $key        = array_rand($this->nsqlookupds);
-        $nsqlookupd = $this->nsqlookupds[$key];
-
-        return $nsqlookupd->lookup($this->topic);
-    }
-
-    private function relookup()
-    {
-        $data = $this->lookup();
-        if (empty($data)) {
-            return false;
-        }
-
-        $addresses = array();
-        foreach ($data as $item) {
-            $address             = $this->makeNsqdAddress($item['host'], $item['tcp_port']);
-            $addresses[$address] = 1;
-            if (!isset($this->nsqdAddresses[$address])) {
-                $this->initNsqd($item);
-            }
-        }
-
-        foreach ($this->nsqdAddresses as $address => $sid) {
-            if (!isset($addresses[$address])) {
-                $this->removeNsqd($this->nsqds[$sid]);
-            }
-        }
-
-        $this->updateHeartbeatCntToRelookup();
-        return true;
-    }
-
-    private function initNsqds()
-    {
-        $data = $this->lookup();
-        if (empty($data)) {
-            throw new \Exception('lookup error');
-        }
-
-        foreach ($data as $item) {
-            $client = new TcpClient($item['host'], $item['tcp_port']);
-            if ($this->initNsqd($client) === false) {
-                $client->close();
-            }
-        }
-
-        $this->updateHeartbeatCntToRelookup();
-    }
-
-    private function updateHeartbeatCntToRelookup()
-    {
-        $this->heartbeatCntToRelookup = self::HEARTBEAT_CNT_TO_RELOOKUP_PER_NSQD * count($this->nsqds);
-    }
-
-    private function initNsqd(TcpClient $client)
-    {
-        $nsqd = new Nsqd($client);
-        if ($nsqd->connect(1) === false) {
-            $this->logger->error('nsqd connect error: ' . $nsqd->getTcpClient()->getLastError());
-            return false;
-        }
-
-        try {
-            $nsqd->sendMagic();
+        foreach ($this->nsqds as $nsqd) {
             $nsqd->subscribe($this->topic, $this->channel);
             $nsqd->updateRdy(1);
-        } catch (\Exception $e) {
-            $this->logger->error('nsqd init error: ' . $client->getLastError());
-            return false;
         }
-
-        $sid      = $nsqd->getTcpClient()->getSocketId();
-        $peerInfo = $client->getPeerInfo();
-        $address  = $this->makeNsqdAddress($peerInfo['host'], $peerInfo['port']);
-
-        $this->nsqds[$sid]             = $nsqd;
-        $this->nsqdAddresses[$address] = $sid;
-
-        return true;
-    }
-
-    private function makeNsqdAddress($host, $port)
-    {
-        return $host . ':' . $port;
-    }
-
-    private function removeNsqd(Nsqd $nsqd)
-    {
-        $client   = $nsqd->getTcpClient();
-        $sid      = $client->getSocketId();
-        $peerInfo = $client->getPeerInfo();
-        $address  = $this->makeNsqdAddress($peerInfo['host'], $peerInfo['port']);
-
-        $client->close();
-        unset($this->nsqds[$sid]);
-        unset($this->nsqdAddresses[$address]);
-
-        $this->updateHeartbeatCntToRelookup();
     }
 
     /**
@@ -336,13 +199,5 @@ class Consumer
         } else {
             $this->logger->info("recv response frame: $contents");
         }
-    }
-
-    /**
-     * @param Error $error
-     */
-    private function processErrorFrame($error)
-    {
-        $this->logger->error("recv error frame: " . $error->getMsg());
     }
 }
