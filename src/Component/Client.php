@@ -17,9 +17,17 @@ use PhpNsq\Socket\TcpClient;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
-abstract class ClientBase
+abstract class Client
 {
     const HEARTBEAT_CNT_TO_RELOOKUP_PER_NSQD = 10;
+
+    const SOCKET_WRITE_TIMEOUT_S  = 30;
+    const SOCKET_WRITE_TIMEOUT_MS = 0;
+
+    private $writeTimeout = array(
+        'sec' => self::SOCKET_WRITE_TIMEOUT_S,
+        'usec' => self::SOCKET_WRITE_TIMEOUT_MS,
+    );
 
     /**
      * @var Nsqlookupd[]
@@ -46,6 +54,13 @@ abstract class ClientBase
     public function __construct()
     {
         $this->logger = new NullLogger();
+    }
+
+    public function setWriteTimeout(array $timeout)
+    {
+        $this->writeTimeout = array_merge($this->writeTimeout, $timeout);
+
+        return $this;
     }
 
     public function setLogger(LoggerInterface $logger)
@@ -122,6 +137,7 @@ abstract class ClientBase
 
         foreach ($data as $item) {
             $client = new TcpClient($item['host'], $item['tcp_port']);
+            $client->setWriteTimeout($this->writeTimeout);
             if ($this->initNsqd($client) === false) {
                 $client->close();
             }

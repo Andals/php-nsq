@@ -13,11 +13,10 @@ use PhpNsq\Frame\Error;
 use PhpNsq\Frame\Message;
 use PhpNsq\Frame\Response;
 use PhpNsq\Frame\Tool;
-use PhpNsq\Socket\TcpClient;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
-class Consumer extends ClientBase
+class Consumer extends Client
 {
     /**
      * @var MessageHandler

@@ -21,15 +21,31 @@ $logger   = new \PhpNsq\Log\Logger($formater, $writer);
 $producer = new Producer();
 $producer->messageNeedGzip()
          ->addNsqlookupd('http://127.0.0.1:4161')
+         ->setWriteTimeout(array('sec' => 10,'usec' => 0))
          ->setLogger($logger);
 
-// for ($i=0; $i < 10; $i++) { 
-//     $producer->publish('app2_t2', 'hello' . "\t" . date('Y-m-d H:i:s'));
-// }
-// exit;
+var_dump("try publish 10 times");
+
+for ($i=0; $i < 10; $i++) {
+    try {
+        $ret = $producer->publish('app2_t2', 'hello' . "\t" . date('Y-m-d H:i:s'));
+        var_dump($ret);
+    } catch (Exception $e) {
+        var_dump($e->getMessage());
+    }
+}
+
+sleep(61);
+var_dump("try multiPublish after sleep 61s");
 
 $messages = array();
 for ($i=0; $i < 10; $i++) { 
     $messages[] = 'world' . "\t" . date('Y-m-d H:i:s');
 }
-$producer->multiPublish('app2_t2', $messages);
+
+try {
+    $ret = $producer->multiPublish('app2_t2', $messages);
+    var_dump($ret);
+} catch (Exception $e) {
+    var_dump($e->getMessage());
+}

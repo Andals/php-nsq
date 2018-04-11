@@ -17,18 +17,36 @@ class TcpClient
 
     public function __construct($host, $port, $domain = AF_INET)
     {
-        $socket = socket_create($domain, SOCK_STREAM, SOL_TCP);
-        if ($socket === false) {
-            $error = $this->getLastError();
-            throw new \Exception("socket_create error: " . $error['msg']);
-        }
-
-        $this->socket   = $socket;
         $this->peerInfo = array(
             'host'   => $host,
             'port'   => $port,
             'domain' => $domain,
         );
+
+        $this->createSocket();
+    }
+
+    private function createSocket()
+    {
+        $socket = socket_create($this->peerInfo['domain'], SOCK_STREAM, SOL_TCP);
+        if ($socket === false) {
+            $error = $this->getLastError();
+            throw new \Exception("socket_create error: " . $error['msg']);
+        }
+
+        $this->socket = $socket;
+    }
+
+    public function setWriteTimeout(array $timeout)
+    {
+        if (empty($timeout) || empty($timeout['sec']) || empty($timeout['usec'])) {
+            return;
+        }
+
+        if (@socket_set_option($this->socket, SOL_SOCKET, SO_SNDTIMEO, $timeout) === false) {
+            $error = $this->getLastError();
+            throw new \Exception("socket_set_option SO_SNDTIMEO error: " . $error['msg']);
+        }
     }
 
     public function connect($retry = 0)
@@ -58,12 +76,7 @@ class TcpClient
         $this->connected = false;
         $this->socket    = null;
 
-        $socket = socket_create($this->peerInfo['domain'], SOCK_STREAM, SOL_TCP);
-        if ($socket === false) {
-            return false;
-        }
-
-        $this->socket = $socket;
+        $this->createSocket();
         return $this->connect($retry);
     }
 

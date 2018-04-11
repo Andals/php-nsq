@@ -13,11 +13,10 @@ use PhpNsq\Frame\Error;
 use PhpNsq\Frame\Message;
 use PhpNsq\Frame\Response;
 use PhpNsq\Frame\Tool;
-use PhpNsq\Socket\TcpClient;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
-class Producer extends ClientBase
+class Producer extends Client
 {
     private $gzip  = false;
 
@@ -53,7 +52,11 @@ class Producer extends ClientBase
                 break;
             } catch (\Exception $e) {
                 $this->logger->error("publish error: " . $e->getMessage());
-                $this->removeNsqd($nsqd);
+                if ($nsqd->reconnect()) {
+                    $nsqd->sendMagic();
+                } else {
+                    $this->removeNsqd($nsqd);
+                }
             }
         }
 
@@ -87,7 +90,11 @@ class Producer extends ClientBase
                 break;
             } catch (\Exception $e) {
                 $this->logger->error("multiPublish error: " . $e->getMessage());
-                $this->removeNsqd($nsqd);
+                if ($nsqd->reconnect()) {
+                    $nsqd->sendMagic();
+                } else {
+                    $this->removeNsqd($nsqd);
+                }
             }
         }
 

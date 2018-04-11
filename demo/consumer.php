@@ -45,5 +45,8 @@ $consumer->messageNeedGunzip()
          ->addNsqlookupd('http://127.0.0.1:4161')
          ->setHandler(new MyMessageHandler())
          ->setLogger($logger);
-
-$consumer->run('app2_t2', 'c1');
+try {
+    $consumer->run('app2_t2', 'c1');
+} catch (Exception $e) {
+    var_dump($e->getMessage());
+}
