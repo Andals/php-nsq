@@ -16,4 +16,5 @@ composer require andals/php-nsq
 
 # Demo
 
-[consumer](https://github.com/Andals/php-nsq/blob/master/demo/consumer.php)
+[producer](demo/producer.php)  
+[consumer](demo/consumer.php)
