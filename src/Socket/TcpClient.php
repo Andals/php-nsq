@@ -15,13 +15,19 @@ class TcpClient
     private $peerInfo  = array();
     private $connected = false;
 
-    public function __construct($host, $port, $domain = AF_INET)
+    private $timeout = null;
+
+    public function __construct($host, $port, $domain = AF_INET, $timeout = null)
     {
         $this->peerInfo = array(
             'host'   => $host,
             'port'   => $port,
             'domain' => $domain,
         );
+
+        if (!empty($timeout) && isset($timeout['sec']) && isset($timeout['usec'])) {
+            $this->timeout = $timeout;
+        }
 
         $this->createSocket();
     }
@@ -34,19 +40,19 @@ class TcpClient
             throw new \Exception("socket_create error: " . $error['msg']);
         }
 
+        if (!empty($this->timeout)) {
+            if (@socket_set_option($socket, SOL_SOCKET, SO_SNDTIMEO, $this->timeout) === false) {
+                $error = $this->getLastError();
+                throw new \Exception("socket_set_option SO_SNDTIMEO error: " . $error['msg']);
+            }
+
+            if (@socket_set_option($socket, SOL_SOCKET, SO_RCVTIMEO, $this->timeout) === false) {
+                $error = $this->getLastError();
+                throw new \Exception("socket_set_option SO_RCVTIMEO error: " . $error['msg']);
+            }
+        }
+
         $this->socket = $socket;
-    }
-
-    public function setWriteTimeout(array $timeout)
-    {
-        if (empty($timeout) || empty($timeout['sec']) || empty($timeout['usec'])) {
-            return;
-        }
-
-        if (@socket_set_option($this->socket, SOL_SOCKET, SO_SNDTIMEO, $timeout) === false) {
-            $error = $this->getLastError();
-            throw new \Exception("socket_set_option SO_SNDTIMEO error: " . $error['msg']);
-        }
     }
 
     public function connect($retry = 0)

@@ -21,12 +21,12 @@ abstract class Client
 {
     const HEARTBEAT_CNT_TO_RELOOKUP_PER_NSQD = 10;
 
-    const SOCKET_WRITE_TIMEOUT_S  = 30;
-    const SOCKET_WRITE_TIMEOUT_MS = 0;
+    const SOCKET_TIMEOUT_S  = 30;
+    const SOCKET_TIMEOUT_MS = 0;
 
-    private $writeTimeout = array(
-        'sec' => self::SOCKET_WRITE_TIMEOUT_S,
-        'usec' => self::SOCKET_WRITE_TIMEOUT_MS,
+    private $timeout = array(
+        'sec' => self::SOCKET_TIMEOUT_S,
+        'usec' => self::SOCKET_TIMEOUT_MS,
     );
 
     /**
@@ -56,9 +56,9 @@ abstract class Client
         $this->logger = new NullLogger();
     }
 
-    public function setWriteTimeout(array $timeout)
+    public function setTimeout(array $timeout)
     {
-        $this->writeTimeout = array_merge($this->writeTimeout, $timeout);
+        $this->timeout = array_merge($this->timeout, $timeout);
 
         return $this;
     }
@@ -136,8 +136,7 @@ abstract class Client
         }
 
         foreach ($data as $item) {
-            $client = new TcpClient($item['host'], $item['tcp_port']);
-            $client->setWriteTimeout($this->writeTimeout);
+            $client = new TcpClient($item['host'], $item['tcp_port'], AF_INET, $this->timeout);
             if ($this->initNsqd($client) === false) {
                 $client->close();
             }

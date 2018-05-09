@@ -21,7 +21,7 @@ $logger   = new \PhpNsq\Log\Logger($formater, $writer);
 $producer = new Producer();
 $producer->messageNeedGzip()
          ->addNsqlookupd('http://127.0.0.1:4161')
-         ->setWriteTimeout(array('sec' => 10,'usec' => 0))
+         ->setTimeout(array('sec' => 10,'usec' => 0))
          ->setLogger($logger);
 
 var_dump("try publish 10 times");
